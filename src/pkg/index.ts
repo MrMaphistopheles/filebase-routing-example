@@ -128,9 +128,14 @@ export function start(port: number) {
             .replace('//', '/')
             .split('?')[0]
 
-        await middlewareHandler(request, response, async () => {
-            await routeHandler(request, response, filePath)
-        })
+        try {
+            await middlewareHandler(request, response, async () => {
+                await routeHandler(request, response, filePath)
+            })
+        } catch (error) {
+            console.error('Error occurred:', error)
+            response.status(500).html('Internal Server Error')
+        }
     })
 
     server.listen(port, () => {
