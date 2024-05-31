@@ -3,6 +3,26 @@ import { middlewareHandler } from './middleware/middleware'
 import { routeHandler } from './router/routeHandler'
 import { json } from './method/json'
 import { html } from './method/html'
+import { Cookie, cookies } from './method/set-cookies'
+import { type JwtPayload, verify } from 'jsonwebtoken'
+import dotenv from 'dotenv'
+
+interface User {
+    id: string
+    name: string
+    given_name: string
+    family_name: string
+    picture: string
+    locale: string
+}
+
+interface UserToken {
+    user: User
+    iat: number
+    exp: number
+}
+
+dotenv.config()
 
 class RouterResponse {
     private response: http.ServerResponse
@@ -12,22 +32,35 @@ class RouterResponse {
     }
 
     json(data: any) {
+        this.response.setHeader('Content-Type', 'application/json')
         this.response.statusCode = 200
         json.json(data, this.response)
     }
 
+    setCookie(cookie: Cookie) {
+        cookies.set(cookie, this.response)
+    }
+
     html(data: string) {
+        this.response.statusCode = 200
+        this.response.setHeader('Content-Type', 'text/html')
         html.html(data, this.response)
     }
 
-    status(statusCode: number) {
-        this.response.statusCode = statusCode
+    end() {
+        this.response.end()
+    }
 
+    status(statusCode: number) {
         return {
             html: (data: string) => {
+                this.response.statusCode = statusCode
+                this.response.setHeader('Content-Type', 'text/html')
                 html.html(data, this.response)
             },
             json: (obj: unknown) => {
+                this.response.statusCode = statusCode
+                this.response.setHeader('Content-Type', 'application/json')
                 json.json(obj, this.response)
             },
         }
@@ -90,6 +123,48 @@ class RouterRequest {
 
     getCurrentPage() {
         return this.request.url?.split('?')[0]?.split('/').splice(-1)[0]
+    }
+
+    /**
+     * Retrieves the cookies from the request headers.
+     *
+     * @returns {Object} - The cookie object containing the name and value.
+     */
+    getCookies(): { name: string | undefined; value: string | undefined } {
+        // Retrieve the full cookie string from the request headers
+        const fullCookie = this.request.headers.cookie
+
+        // Split the cookie string by '=' to separate the name and value
+        const arrayWithCookies = fullCookie?.split('=')
+
+        // Create a cookie object with the name and value
+        const cookie = {
+            name: arrayWithCookies?.[0], // The name of the cookie
+            value: arrayWithCookies?.[1], // The value of the cookie
+        }
+
+        return cookie
+    }
+
+    /**
+     * Retrieves the user session from the cookies.
+     *
+     * @returns {Object | undefined} - The decoded user session object, or undefined if the session is not found.
+     */
+    getUserSession(): UserToken | undefined {
+        // Get the value of the session cookie
+        const { value } = this.getCookies()
+
+        // If the session is not found, return undefined
+        if (!value) return undefined
+
+        // Decode the session value using the secret key
+        const decoded = verify(value, process.env.SECRET as string)
+
+        const user: UserToken = JSON.parse(JSON.stringify(decoded))
+
+        // Return the decoded session object
+        return user
     }
 
     getParams() {

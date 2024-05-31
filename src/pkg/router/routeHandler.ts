@@ -11,7 +11,11 @@ export async function routeHandler(
     const routePath = path.join(`./src/${filePath}`)
     const isExist = fs.existsSync(routePath)
 
-    if (!isExist) {
+    if (!isExist && filePath === 'app/routes/auth/google/handler') {
+        ;(await import('../auth/oauth/handler')).GET(req, res)
+    } else if (!isExist && filePath === 'app/routes/auth/google/callback') {
+        ;(await import('../auth/oauth/callback')).GET(req, res)
+    } else if (!isExist) {
         ;(await import('../../app/routes/404/route')).GET(req, res)
     } else {
         const module = await import(path.join(`../../${filePath}`, 'route'))

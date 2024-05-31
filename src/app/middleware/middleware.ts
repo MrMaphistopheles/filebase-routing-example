@@ -22,4 +22,5 @@ export function middleware(
 
 export const confige = {
     matcher: ['/start', '/'],
+    authMatcher: ['/user'],
 }
